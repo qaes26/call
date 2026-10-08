@@ -26,6 +26,7 @@ class FamilyCallApp {
     this.callSeconds = 0;
     this.isMicMuted = false;
     this.isVideoOff = false;
+    this.wakeLock = null;
 
     this.presence = {
       father: false,
@@ -101,39 +102,109 @@ class FamilyCallApp {
   bindEvents() {
     // تبديل إظهار الرمز السري
     this.btnTogglePin.addEventListener('click', () => {
+      this.triggerHaptic(15);
       this.pinInput.type = this.pinInput.type === 'password' ? 'text' : 'password';
     });
 
     // تسجيل الدخول
-    this.btnLogin.addEventListener('click', () => this.handleLogin());
+    this.btnLogin.addEventListener('click', () => {
+      this.triggerHaptic(25);
+      this.handleLogin();
+    });
     this.pinInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.handleLogin();
+      if (e.key === 'Enter') {
+        this.triggerHaptic(25);
+        this.handleLogin();
+      }
     });
 
     // تبديل الحساب
-    this.btnSwitchProfile.addEventListener('click', () => this.switchProfile());
+    this.btnSwitchProfile.addEventListener('click', () => {
+      this.triggerHaptic(20);
+      this.switchProfile();
+    });
 
     // أزرار بدء الاتصال
-    this.btnCallFather.addEventListener('click', () => this.startCall('father'));
-    this.btnCallMother.addEventListener('click', () => this.startCall('mother'));
-    this.btnParentCallChild.addEventListener('click', () => this.startCall('child'));
+    this.btnCallFather.addEventListener('click', () => {
+      this.triggerHaptic(40);
+      this.startCall('father');
+    });
+    this.btnCallMother.addEventListener('click', () => {
+      this.triggerHaptic(40);
+      this.startCall('mother');
+    });
+    this.btnParentCallChild.addEventListener('click', () => {
+      this.triggerHaptic(50);
+      this.startCall('child');
+    });
 
     // إلغاء الاتصال الصادر
-    this.btnCancelCall.addEventListener('click', () => this.cancelOutgoingCall());
+    this.btnCancelCall.addEventListener('click', () => {
+      this.triggerHaptic(30);
+      this.cancelOutgoingCall();
+    });
 
     // الرد على المكالمة الواردة أو رفضها
-    this.btnAcceptCall.addEventListener('click', () => this.acceptIncomingCall());
-    this.btnRejectCall.addEventListener('click', () => this.rejectIncomingCall());
+    this.btnAcceptCall.addEventListener('click', () => {
+      this.triggerHaptic(60);
+      this.acceptIncomingCall();
+    });
+    this.btnRejectCall.addEventListener('click', () => {
+      this.triggerHaptic(30);
+      this.rejectIncomingCall();
+    });
 
     // أزرار المكالمة الجارية
-    this.btnHangup.addEventListener('click', () => this.hangupCall());
-    this.btnToggleMic.addEventListener('click', () => this.toggleMic());
-    this.btnToggleCam.addEventListener('click', () => this.toggleCam());
-    this.btnFlipCam.addEventListener('click', () => this.flipCam());
+    this.btnHangup.addEventListener('click', () => {
+      this.triggerHaptic(50);
+      this.hangupCall();
+    });
+    this.btnToggleMic.addEventListener('click', () => {
+      this.triggerHaptic(20);
+      this.toggleMic();
+    });
+    this.btnToggleCam.addEventListener('click', () => {
+      this.triggerHaptic(20);
+      this.toggleCam();
+    });
+    this.btnFlipCam.addEventListener('click', () => {
+      this.triggerHaptic(30);
+      this.flipCam();
+    });
+  }
+
+  // اهتزاز لمسي خفيف للهاتف
+  triggerHaptic(duration = 20) {
+    if (navigator.vibrate) {
+      try { navigator.vibrate(duration); } catch (e) {}
+    }
+  }
+
+  // إبقاء شاشة الهاتف مضاءة أثناء المكالمة
+  async acquireWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+      } catch (err) {
+        console.warn('WakeLock غير مفعل:', err);
+      }
+    }
+  }
+
+  releaseWakeLock() {
+    if (this.wakeLock) {
+      try { this.wakeLock.release(); } catch (e) {}
+      this.wakeLock = null;
+    }
   }
 
   async init() {
     securityManager.checkSecureContext();
+
+    // تسجيل Service Worker للتثبيت كتطبيق أصلي PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
 
     const savedPin = securityManager.getSavedPin();
     const savedRole = securityManager.getSavedRole();
@@ -289,7 +360,7 @@ class FamilyCallApp {
   setConnectionState(isConnected) {
     if (isConnected) {
       this.connectionBadge.className = 'badge-status connected';
-      this.connectionBadge.querySelector('.status-text').textContent = 'متصل بالشبكة المشفرة';
+      this.connectionBadge.querySelector('.status-text').textContent = 'متصل';
     } else {
       this.connectionBadge.className = 'badge-status disconnected';
       this.connectionBadge.querySelector('.status-text').textContent = 'غير متصل';
@@ -323,7 +394,7 @@ class FamilyCallApp {
     if (this.childStatusBadge) {
       if (this.presence.child) {
         this.childStatusBadge.className = 'live-status-pill online';
-        this.childStatusBadge.querySelector('.status-label').textContent = 'قيس متصل بالإنترنت ومتاح الآن 🟢';
+        this.childStatusBadge.querySelector('.status-label').textContent = 'قيس متاح الآن 🟢';
       } else {
         this.childStatusBadge.className = 'live-status-pill offline';
         this.childStatusBadge.querySelector('.status-label').textContent = 'قيس غير متصل حالياً';
@@ -547,6 +618,7 @@ class FamilyCallApp {
     this.activeCallScreen.classList.remove('active');
 
     this.stopCallTimer();
+    this.releaseWakeLock();
     this.cleanupWebRTC();
     this.activeCallTarget = null;
     this.pendingIncomingCall = null;
@@ -571,6 +643,7 @@ class FamilyCallApp {
     this.peerNameHeader.textContent = ROLE_NAMES[this.activeCallTarget] || this.activeCallTarget;
     this.activeCallScreen.classList.add('active');
     this.startCallTimer();
+    this.acquireWakeLock();
     
     // إعادة تعيين أزرار التحكم
     this.isMicMuted = false;
