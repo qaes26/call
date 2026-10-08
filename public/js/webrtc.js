@@ -119,9 +119,10 @@ export class WebRTCConnection {
 
     const rtcConfig = {
       iceServers: iceServers || [{ urls: 'stun:stun.l.google.com:19302' }],
-      iceCandidatePoolSize: 10,
+      iceCandidatePoolSize: 0,
       bundlePolicy: 'max-bundle',
-      rtcpMuxPolicy: 'require' // فرض دمج RTCP لمزيد من الأمان وتخفيض المنافذ
+      rtcpMuxPolicy: 'require', // فرض دمج RTCP لمزيد من الأمان وتخفيض المنافذ
+      iceTransportPolicy: 'all' // السماح بترحيل TURN لربط الهواتف عبر 4G/5G وخارج شبكة المنزل
     };
 
     this.peerConnection = new RTCPeerConnection(rtcConfig);
@@ -209,19 +210,21 @@ export class WebRTCConnection {
 
   // إضافة مرشح ICE مع التخزين المؤقت (Safe ICE Candidate Handling)
   async addIceCandidate(candidateData) {
-    if (!candidateData || !candidateData.candidate) return;
+    if (!candidateData) return;
 
-    const candidate = new RTCIceCandidate(candidateData);
+    try {
+      const candidate = (candidateData instanceof RTCIceCandidate)
+        ? candidateData
+        : new RTCIceCandidate(candidateData);
 
-    if (this.peerConnection && this.isRemoteDescriptionSet) {
-      try {
+      if (this.peerConnection && this.isRemoteDescriptionSet) {
         await this.peerConnection.addIceCandidate(candidate);
-      } catch (err) {
-        console.warn('[ICE ERROR] فشل إضافة مرشح:', err);
+      } else {
+        // تخزين المرشح مؤقتاً لحين تعيين remoteDescription وتفادي خطأ WebRTC الشهير
+        this.iceCandidateQueue.push(candidate);
       }
-    } else {
-      // تخزين المرشح مؤقتاً لحين تعيين remoteDescription وتفادي خطأ WebRTC الشهير
-      this.iceCandidateQueue.push(candidate);
+    } catch (err) {
+      console.warn('[ICE ERROR] فشل إضافة مرشح:', err);
     }
   }
 

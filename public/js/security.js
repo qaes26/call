@@ -202,14 +202,43 @@ export class SecurityManager {
     };
   }
 
-  // قائمة خوادم STUN الموثوقة والعالمية المجانية
+  // قائمة خوادم STUN و TURN العالمية لتخطي جدران الحماية وشبكات 4G/5G (Symmetric NAT)
   getIceServers() {
     return [
+      // 1. خوادم STUN العالمية السريعة
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun.cloudflare.com:3478' }
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'stun:openrelay.metered.ca:80' },
+
+      // 2. خوادم ترحيل TURN المجانية (Open Relay Project)
+      // تسمح بمرور الصوت والصورة عبر بيانات الهاتف (4G/5G) وخارج شبكة الواي فاي المنزلية
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turns:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turns:openrelay.metered.ca:5349',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ];
   }
 }

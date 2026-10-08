@@ -414,15 +414,19 @@ class FamilyCallApp {
           this.remoteVideoPlaceholder.classList.add('hidden');
         },
         onConnectionStateChange: (state) => {
-          if (state === 'disconnected' || state === 'failed') {
-            this.showToast('انقطعت جودة الاتصال المشفر');
+          console.log(`[WEBRTC CONNECTION STATE]: ${state}`);
+          if (state === 'connected') {
+            console.log('✅ تم الاتصال المباشر بنجاح عبر الإنترنت/4G');
+          } else if (state === 'failed') {
+            console.warn('⚠️ محاولة إعادة الربط (ICE Restart)...');
+            if (this.webrtc) this.webrtc.restartIce();
           }
         },
         onIceCandidate: (candidate) => {
-          if (this.activeCallTarget) {
+          if (this.activeCallTarget && candidate) {
             signalingClient.emit('ice-candidate', {
               targetRole: this.activeCallTarget,
-              candidate: candidate.toJSON()
+              candidate: candidate.toJSON ? candidate.toJSON() : candidate
             });
           }
         }
@@ -433,9 +437,17 @@ class FamilyCallApp {
     const localStream = await this.webrtc.startLocalMedia({ video: true, audio: true });
     this.localVideo.srcObject = localStream;
 
-    // جلب خوادم STUN الموثوقة
+    // جلب خوادم STUN و TURN المشفرة (تتخطى شبكات 4G و NAT)
     const iceServers = securityManager.getIceServers();
     this.webrtc.initializePeerConnection(iceServers);
+
+    // تفريغ أي مرشحات ICE وصلت مبكراً
+    if (this.earlyIceCandidatesQueue && this.earlyIceCandidatesQueue.length > 0) {
+      for (const cand of this.earlyIceCandidatesQueue) {
+        await this.webrtc.addIceCandidate(cand);
+      }
+      this.earlyIceCandidatesQueue = [];
+    }
   }
 
   // 1. بدء الاتصال (Caller)
@@ -550,6 +562,18 @@ class FamilyCallApp {
     this.showActiveCallScreen();
 
     try {
+      if (!this.webrtc || !this.webrtc.peerConnection) {
+        await this.prepareWebRTC();
+      }
+
+      // تفريغ أي مرشحات وصلت قبل تجهيز الـ Offer
+      if (this.earlyIceCandidatesQueue && this.earlyIceCandidatesQueue.length > 0) {
+        for (const cand of this.earlyIceCandidatesQueue) {
+          await this.webrtc.addIceCandidate(cand);
+        }
+        this.earlyIceCandidatesQueue = [];
+      }
+
       const offer = await this.webrtc.createOffer();
       signalingClient.emit('webrtc-offer', {
         targetRole: this.activeCallTarget,
@@ -574,11 +598,22 @@ class FamilyCallApp {
   // تبادل حزم SDP المشفرة
   async handleRemoteOffer(data) {
     try {
+      if (!this.webrtc || !this.webrtc.peerConnection) {
+        await this.prepareWebRTC();
+      }
       const answer = await this.webrtc.handleOfferAndCreateAnswer(data.sdp);
       signalingClient.emit('webrtc-answer', {
         targetRole: data.fromRole,
         sdp: answer
       });
+
+      // تفريغ المرشحات بعد استلام العرض
+      if (this.earlyIceCandidatesQueue && this.earlyIceCandidatesQueue.length > 0) {
+        for (const cand of this.earlyIceCandidatesQueue) {
+          await this.webrtc.addIceCandidate(cand);
+        }
+        this.earlyIceCandidatesQueue = [];
+      }
     } catch (err) {
       console.error('[HANDLE OFFER ERROR]:', err);
     }
@@ -587,6 +622,14 @@ class FamilyCallApp {
   async handleRemoteAnswer(data) {
     try {
       await this.webrtc.handleAnswer(data.sdp);
+
+      // تفريغ المرشحات بعد تثبيت الإجابة
+      if (this.earlyIceCandidatesQueue && this.earlyIceCandidatesQueue.length > 0) {
+        for (const cand of this.earlyIceCandidatesQueue) {
+          await this.webrtc.addIceCandidate(cand);
+        }
+        this.earlyIceCandidatesQueue = [];
+      }
     } catch (err) {
       console.error('[HANDLE ANSWER ERROR]:', err);
     }
@@ -594,6 +637,11 @@ class FamilyCallApp {
 
   async handleRemoteIceCandidate(data) {
     try {
+      if (!this.webrtc || !this.webrtc.peerConnection) {
+        if (!this.earlyIceCandidatesQueue) this.earlyIceCandidatesQueue = [];
+        this.earlyIceCandidatesQueue.push(data.candidate);
+        return;
+      }
       await this.webrtc.addIceCandidate(data.candidate);
     } catch (err) {
       console.error('[HANDLE ICE ERROR]:', err);
@@ -627,6 +675,7 @@ class FamilyCallApp {
   }
 
   cleanupWebRTC() {
+    this.earlyIceCandidatesQueue = [];
     if (this.webrtc) {
       this.webrtc.close();
       this.webrtc = null;
