@@ -1,12 +1,15 @@
 /**
- * إدارة الأمان وبصمة الجهاز على مستوى متصفح العميل (Client-Side Security)
+ * إدارة الأمان والتشفير الشامل (E2EE) وحساب المفاتيح على المتصفح مباشرة
+ * مصمم ليعمل 100% على Netlify بدون الحاجة لأي خادم وسيط
  */
 
 export class SecurityManager {
   constructor() {
-    this.tokenKey = 'my_parents_call_jwt';
     this.roleKey = 'my_parents_call_role';
+    this.pinKey = 'my_parents_call_pin';
     this.deviceKey = 'my_parents_call_device_id';
+    this.cryptoKey = null;
+    this.roomHash = null;
   }
 
   // الحصول على معرف جهاز فريد وثابت للجهاز الحالي
@@ -23,14 +26,14 @@ export class SecurityManager {
     return deviceId;
   }
 
-  // حفظ رمز JWT والدور
-  saveSession(token, role) {
-    sessionStorage.setItem(this.tokenKey, token);
-    localStorage.setItem(this.roleKey, role); // حفظ الدور للملائمة
+  // حفظ الجلسة في المتصفح
+  saveSession(pin, role) {
+    sessionStorage.setItem(this.pinKey, pin);
+    localStorage.setItem(this.roleKey, role);
   }
 
-  getToken() {
-    return sessionStorage.getItem(this.tokenKey);
+  getSavedPin() {
+    return sessionStorage.getItem(this.pinKey) || null;
   }
 
   getSavedRole() {
@@ -38,63 +41,155 @@ export class SecurityManager {
   }
 
   clearSession() {
-    sessionStorage.removeItem(this.tokenKey);
+    sessionStorage.removeItem(this.pinKey);
+    this.cryptoKey = null;
+    this.roomHash = null;
   }
 
-  // التحقق من أن الصفحة تعمل في بيئة آمنة (HTTPS أو Localhost)
-  // وهو متطلب أساسي في المتصفحات الحديثة للوصول إلى الكاميرا والمايكروفون
+  // التحقق من بيئة العمل الآمنة (HTTPS)
   checkSecureContext() {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (!window.isSecureContext && !isLocal) {
-      console.warn('[SECURITY WARNING] يجب تشغيل التطبيق عبر HTTPS للوصول إلى الكاميرا والمايكروفون وتفعيل DTLS-SRTP.');
+      console.warn('[SECURITY WARNING] يجب تشغيل التطبيق عبر HTTPS للوصول إلى الكاميرا والمايكروفون.');
       return false;
     }
     return true;
   }
 
-  // طلب المصادقة من خادم الإشارات
-  async authenticate(pin, role) {
-    const deviceId = this.getOrCreateDeviceId();
+  // اشتقاق مفتاح التشفير AES-256-GCM ومعرف الغرفة من الرمز السري العائلي (PBKDF2)
+  async initCryptoFromPin(pin) {
+    const enc = new TextEncoder();
+    const pinBuffer = enc.encode(String(pin).trim());
 
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+    // 1. توليد مفتاح أساسي من الـ PIN
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      pinBuffer,
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+
+    // ملح ثابت للمشروع لضمان اشتقاق نفس المفتاح بين أفراد نفس العائلة
+    const salt = enc.encode('my_parents_call_salt_v1_2026_e2ee');
+
+    // 2. اشتقاق مفتاح AES-GCM (256 بت) مع 100,000 تكرار لمقاومة التخمين
+    this.cryptoKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256'
       },
-      body: JSON.stringify({
-        pin,
-        role,
-        deviceId
-      })
-    });
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
 
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || 'فشل التحقق من الرمز السري');
-    }
+    // 3. حساب معرف فريد ومشفر لغرفة العائلة (SHA-256 Hash)
+    const roomBuffer = await crypto.subtle.digest(
+      'SHA-256',
+      enc.encode(`room_${String(pin).trim()}_my_parents_call`)
+    );
+    
+    // تحويل الـ Hash إلى سلسلة نصية
+    const hashArray = Array.from(new Uint8Array(roomBuffer));
+    this.roomHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 24);
 
-    this.saveSession(data.token, role);
-    return data;
+    return {
+      cryptoKey: this.cryptoKey,
+      roomHash: this.roomHash
+    };
   }
 
-  // جلب بيانات اعتماد STUN/TURN المؤقتة
-  async fetchTurnCredentials() {
-    const token = this.getToken();
-    if (!token) throw new Error('غير مصرح: لا يوجد رمز مصادقة');
+  // تشفير أي رسالة أو بيانات قبل إرسالها عبر قناة الإشارات (AES-256-GCM)
+  async encryptPayload(dataObj) {
+    if (!this.cryptoKey) throw new Error('مفتاح التشفير غير مهيأ');
 
-    const response = await fetch('/api/turn-credentials', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`
+    const enc = new TextEncoder();
+    const plainText = JSON.stringify(dataObj);
+    const encodedData = enc.encode(plainText);
+
+    // توليد IV (Initialization Vector) عشوائي لكل رسالة
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+    const ciphertextBuffer = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: iv },
+      this.cryptoKey,
+      encodedData
+    );
+
+    // تحويل البيانات المشفرة إلى Base64 لنقلها بأمان
+    const cipherArray = new Uint8Array(ciphertextBuffer);
+    const combined = new Uint8Array(iv.length + cipherArray.length);
+    combined.set(iv, 0);
+    combined.set(cipherArray, iv.length);
+
+    let binaryString = '';
+    for (let i = 0; i < combined.length; i++) {
+      binaryString += String.fromCharCode(combined[i]);
+    }
+    return btoa(binaryString);
+  }
+
+  // فك تشفير البيانات المستلمة (AES-256-GCM)
+  async decryptPayload(base64Payload) {
+    if (!this.cryptoKey) throw new Error('مفتاح التشفير غير مهيأ');
+
+    try {
+      const binaryString = atob(base64Payload);
+      const combined = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        combined[i] = binaryString.charCodeAt(i);
       }
-    });
 
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || 'تعذر الحصول على خوادم الاتصال');
+      // استخراج الـ IV (أول 12 بايت) والبيانات المشفرة
+      const iv = combined.slice(0, 12);
+      const ciphertext = combined.slice(12);
+
+      const decryptedBuffer = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        this.cryptoKey,
+        ciphertext
+      );
+
+      const dec = new TextDecoder();
+      const jsonString = dec.decode(decryptedBuffer);
+      return JSON.parse(jsonString);
+    } catch (err) {
+      console.warn('[E2EE DECRYPT WARNING] تعذر فك تشفير الرسالة (ربما تم إرسالها برمز PIN مختلف):', err);
+      return null;
+    }
+  }
+
+  // المصادقة المحلية المباشرة على المتصفح
+  async authenticate(pin, role) {
+    if (!pin || pin.length < 4) {
+      throw new Error('الرجاء إدخال رمز سري عائلي صحيح مكون من 4 أرقام أو أكثر');
     }
 
-    return data.iceServers;
+    // تهيئة التشفير التام
+    await this.initCryptoFromPin(pin);
+    this.saveSession(pin, role);
+
+    return {
+      success: true,
+      role,
+      roomHash: this.roomHash
+    };
+  }
+
+  // قائمة خوادم STUN الموثوقة والعالمية المجانية
+  getIceServers() {
+    return [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' }
+    ];
   }
 }
 

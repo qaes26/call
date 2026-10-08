@@ -1,4 +1,5 @@
 import { securityManager } from './security.js';
+import { signalingClient } from './signaling.js';
 import { WebRTCConnection } from './webrtc.js';
 import { callSound } from './audio.js';
 
@@ -18,7 +19,6 @@ const ROLE_AVATARS = {
 class FamilyCallApp {
   constructor() {
     this.currentRole = null;
-    this.socket = null;
     this.webrtc = null;
     this.activeCallTarget = null;
     this.pendingIncomingCall = null;
@@ -132,16 +132,22 @@ class FamilyCallApp {
     this.btnFlipCam.addEventListener('click', () => this.flipCam());
   }
 
-  init() {
+  async init() {
     securityManager.checkSecureContext();
 
-    const savedToken = securityManager.getToken();
+    const savedPin = securityManager.getSavedPin();
     const savedRole = securityManager.getSavedRole();
 
-    if (savedToken && savedRole) {
-      this.currentRole = savedRole;
-      this.showMainScreen();
-      this.connectSignalingServer(savedToken);
+    if (savedPin && savedRole) {
+      try {
+        await securityManager.initCryptoFromPin(savedPin);
+        this.currentRole = savedRole;
+        this.showMainScreen();
+        this.connectSignalingServer(savedRole, securityManager.roomHash);
+      } catch (err) {
+        console.error('فشل استرجاع الجلسة السابقة:', err);
+        this.showAuthScreen();
+      }
     } else {
       this.showAuthScreen();
     }
@@ -160,6 +166,7 @@ class FamilyCallApp {
     this.authScreen.classList.add('active');
     this.mainScreen.classList.remove('active');
     this.roleBadge.textContent = 'غير مسجل';
+    this.setConnectionState(false);
   }
 
   showMainScreen() {
@@ -192,14 +199,14 @@ class FamilyCallApp {
     }
 
     this.btnLogin.disabled = true;
-    this.btnLogin.textContent = 'جاري التحقق...';
+    this.btnLogin.textContent = 'جاري التفعيل...';
 
     try {
       const data = await securityManager.authenticate(pin, role);
       this.currentRole = role;
       this.pinInput.value = '';
       this.showMainScreen();
-      this.connectSignalingServer(data.token);
+      this.connectSignalingServer(role, data.roomHash);
       this.showToast(`مرحباً بك! تم التفعيل بنجاح كـ ${ROLE_NAMES[role]}`);
     } catch (err) {
       console.error('[LOGIN ERROR]:', err);
@@ -212,10 +219,7 @@ class FamilyCallApp {
 
   switchProfile() {
     if (confirm('هل تريد تسجيل الخروج وتغيير هوية المستخدم؟')) {
-      if (this.socket) {
-        this.socket.disconnect();
-        this.socket = null;
-      }
+      signalingClient.disconnect();
       securityManager.clearSession();
       this.currentRole = null;
       this.showAuthScreen();
@@ -223,97 +227,69 @@ class FamilyCallApp {
   }
 
   // ===========================================================================
-  // خادم الإشارات المشفر (Signaling Connection via WebSocket)
+  // خادم الإشارات المشفر E2EE
   // ===========================================================================
-  connectSignalingServer(token) {
-    if (this.socket) {
-      this.socket.disconnect();
-    }
+  connectSignalingServer(role, roomHash) {
+    signalingClient.connect(role, roomHash);
 
-    if (typeof io === 'undefined') {
-      this.showToast('تعذر تحميل مكتبة الاتصال Socket.io');
-      return;
-    }
-
-    this.socket = io({
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000
-    });
-
-    this.socket.on('connect', () => {
+    signalingClient.on('connect', () => {
       this.setConnectionState(true);
-      console.log('✅ متصل بخادم الإشارات المشفر بنجاح');
+      console.log('✅ متصل بقناة الإشارات المشفرة بنجاح');
     });
 
-    this.socket.on('connect_error', (err) => {
+    signalingClient.on('connect_error', (err) => {
       this.setConnectionState(false);
-      console.error('❌ خطأ في اتصال خادم الإشارات:', err.message);
-      if (err.message.includes('AUTHENTICATION_ERROR')) {
-        this.showToast('انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول');
-        this.switchProfile();
-      }
+      console.error('❌ خطأ في اتصال قناة الإشارات:', err);
     });
 
-    this.socket.on('disconnect', () => {
+    signalingClient.on('disconnect', () => {
       this.setConnectionState(false);
     });
 
     // تحديث حالة ظهور وتواجد أفراد العائلة
-    this.socket.on('presence-update', (presenceData) => {
+    signalingClient.on('presence-update', (presenceData) => {
       this.presence = presenceData;
       this.updatePresenceUI();
     });
 
-    // استبدال الجلسة في حال تم فتح الحساب من جهاز آخر
-    this.socket.on('session-replaced', (data) => {
-      alert(data.message);
-      this.switchProfile();
-    });
-
     // استقبال مكالمة واردة
-    this.socket.on('incoming-call', (data) => {
+    signalingClient.on('incoming-call', (data) => {
       this.handleIncomingCall(data);
     });
 
     // تم قبول المكالمة من الطرف الآخر
-    this.socket.on('call-accepted', (data) => {
+    signalingClient.on('call-accepted', (data) => {
       this.handleCallAccepted(data);
     });
 
     // تم رفض المكالمة
-    this.socket.on('call-rejected', (data) => {
+    signalingClient.on('call-rejected', (data) => {
       this.handleCallRejected(data);
     });
 
     // استقبال عروض وإجابات WebRTC
-    this.socket.on('webrtc-offer', (data) => {
+    signalingClient.on('webrtc-offer', (data) => {
       this.handleRemoteOffer(data);
     });
 
-    this.socket.on('webrtc-answer', (data) => {
+    signalingClient.on('webrtc-answer', (data) => {
       this.handleRemoteAnswer(data);
     });
 
-    this.socket.on('ice-candidate', (data) => {
+    signalingClient.on('ice-candidate', (data) => {
       this.handleRemoteIceCandidate(data);
     });
 
     // انتهاء المكالمة
-    this.socket.on('call-ended', (data) => {
+    signalingClient.on('call-ended', (data) => {
       this.handleCallEnded(data);
-    });
-
-    this.socket.on('security-alert', (data) => {
-      this.showToast(data.message);
     });
   }
 
   setConnectionState(isConnected) {
     if (isConnected) {
       this.connectionBadge.className = 'badge-status connected';
-      this.connectionBadge.querySelector('.status-text').textContent = 'متصل بالشبكة';
+      this.connectionBadge.querySelector('.status-text').textContent = 'متصل بالشبكة المشفرة';
     } else {
       this.connectionBadge.className = 'badge-status disconnected';
       this.connectionBadge.querySelector('.status-text').textContent = 'غير متصل';
@@ -372,8 +348,8 @@ class FamilyCallApp {
           }
         },
         onIceCandidate: (candidate) => {
-          if (this.socket && this.activeCallTarget) {
-            this.socket.emit('ice-candidate', {
+          if (this.activeCallTarget) {
+            signalingClient.emit('ice-candidate', {
               targetRole: this.activeCallTarget,
               candidate: candidate.toJSON()
             });
@@ -386,15 +362,15 @@ class FamilyCallApp {
     const localStream = await this.webrtc.startLocalMedia({ video: true, audio: true });
     this.localVideo.srcObject = localStream;
 
-    // جلب خوادم STUN/TURN المؤقتة المشفرة
-    const iceServers = await securityManager.fetchTurnCredentials();
+    // جلب خوادم STUN الموثوقة
+    const iceServers = securityManager.getIceServers();
     this.webrtc.initializePeerConnection(iceServers);
   }
 
   // 1. بدء الاتصال (Caller)
   async startCall(targetRole) {
-    if (!this.socket || !this.socket.connected) {
-      this.showToast('أنت غير متصل بالخادم حالياً، يرجى الانتظار ثوانٍ.');
+    if (!signalingClient.isConnected) {
+      this.showToast('أنت غير متصل بالشبكة حالياً، يرجى الانتظار ثوانٍ.');
       return;
     }
 
@@ -410,10 +386,10 @@ class FamilyCallApp {
       // إعداد الوسائط مسبقاً لجعل الرد فورياً وبدون أي تأخير
       await this.prepareWebRTC();
 
-      // إرسال طلب المكالمة عبر الخادم
-      this.socket.emit('call-request', {
+      // إرسال طلب المكالمة المشفر عبر قناة الإشارات
+      signalingClient.emit('call-user', {
         targetRole,
-        hasVideo: true
+        callerName: ROLE_NAMES[this.currentRole] || this.currentRole
       });
     } catch (err) {
       console.error('[START CALL ERROR]:', err);
@@ -427,8 +403,8 @@ class FamilyCallApp {
   cancelOutgoingCall() {
     callSound.stopAll();
     this.outgoingCallModal.classList.remove('active');
-    if (this.socket && this.activeCallTarget) {
-      this.socket.emit('call-hangup', { targetRole: this.activeCallTarget });
+    if (this.activeCallTarget) {
+      signalingClient.emit('hangup-call', { targetRole: this.activeCallTarget });
     }
     this.cleanupWebRTC();
     this.activeCallTarget = null;
@@ -438,18 +414,18 @@ class FamilyCallApp {
   handleIncomingCall(data) {
     // إذا كان مشغولاً بمكالمة أخرى
     if (this.activeCallTarget) {
-      this.socket.emit('call-response', {
-        targetRole: data.fromRole,
-        accepted: false
+      signalingClient.emit('reject-call', {
+        targetRole: data.callerRole,
+        reason: 'الخط مشغول بمكالمة أخرى'
       });
       return;
     }
 
     this.pendingIncomingCall = data;
-    this.activeCallTarget = data.fromRole;
+    this.activeCallTarget = data.callerRole;
 
-    this.incomingCallerAvatar.textContent = ROLE_AVATARS[data.fromRole] || '👤';
-    this.incomingCallerName.textContent = `مكالمة واردة من ${ROLE_NAMES[data.fromRole] || data.fromRole}`;
+    this.incomingCallerAvatar.textContent = ROLE_AVATARS[data.callerRole] || '👤';
+    this.incomingCallerName.textContent = `مكالمة واردة من ${ROLE_NAMES[data.callerRole] || data.callerRole}`;
     this.incomingCallModal.classList.add('active');
 
     callSound.startIncomingRing();
@@ -465,9 +441,8 @@ class FamilyCallApp {
       await this.prepareWebRTC();
 
       // إرسال إشعار القبول إلى المتصل
-      this.socket.emit('call-response', {
-        targetRole: this.activeCallTarget,
-        accepted: true
+      signalingClient.emit('accept-call', {
+        targetRole: this.activeCallTarget
       });
 
       this.showActiveCallScreen();
@@ -483,10 +458,10 @@ class FamilyCallApp {
     callSound.stopAll();
     this.incomingCallModal.classList.remove('active');
 
-    if (this.socket && this.activeCallTarget) {
-      this.socket.emit('call-response', {
+    if (this.activeCallTarget) {
+      signalingClient.emit('reject-call', {
         targetRole: this.activeCallTarget,
-        accepted: false
+        reason: 'تم رفض المكالمة'
       });
     }
 
@@ -505,7 +480,7 @@ class FamilyCallApp {
 
     try {
       const offer = await this.webrtc.createOffer();
-      this.socket.emit('webrtc-offer', {
+      signalingClient.emit('webrtc-offer', {
         targetRole: this.activeCallTarget,
         sdp: offer
       });
@@ -525,11 +500,11 @@ class FamilyCallApp {
     this.activeCallTarget = null;
   }
 
-  // تبادل حزم SDP
+  // تبادل حزم SDP المشفرة
   async handleRemoteOffer(data) {
     try {
       const answer = await this.webrtc.handleOfferAndCreateAnswer(data.sdp);
-      this.socket.emit('webrtc-answer', {
+      signalingClient.emit('webrtc-answer', {
         targetRole: data.fromRole,
         sdp: answer
       });
@@ -558,8 +533,8 @@ class FamilyCallApp {
   hangupCall() {
     callSound.playHangupChime();
 
-    if (this.socket && this.activeCallTarget) {
-      this.socket.emit('call-hangup', { targetRole: this.activeCallTarget });
+    if (this.activeCallTarget) {
+      signalingClient.emit('hangup-call', { targetRole: this.activeCallTarget });
     }
 
     this.handleCallEnded({ fromRole: this.activeCallTarget });
