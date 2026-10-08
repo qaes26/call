@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="description" content="تطبيق اتصال صوتي ومرئي عائلي فائق السهولة والأمان للوالدين والأبناء">
+  <title>أبوي وأمي - اتصال مباشر وآمن</title>
+  
+  <!-- Google Fonts: Cairo & Tajawal للخط العربي الأصيل والواضح لكبار السن -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@500;700;900&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    
+    <!-- شريط الرأس العلوي -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-icon">🏡</span>
+        <h1 class="app-title">أبوي وأمي</h1>
+      </div>
+      <div class="header-status">
+        <span id="roleBadge" class="badge-role">غير مسجل</span>
+        <span id="connectionBadge" class="badge-status disconnected">
+          <span class="status-dot"></span>
+          <span class="status-text">غير متصل</span>
+        </span>
+        <button id="btnSwitchProfile" class="btn-icon" title="تبديل الحساب أو تعديل الإعدادات" aria-label="الإعدادات">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- 1. شاشة تسجيل الدخول واختيار الهوية (PIN Setup & Role Selection) -->
+    <main id="authScreen" class="screen active">
+      <div class="card auth-card">
+        <div class="auth-header">
+          <div class="family-emblem">❤️</div>
+          <h2>مرحباً بكم في بيت العائلة</h2>
+          <p class="subtitle">يرجى اختيار هويتك وإدخال الرمز السري للمرة الأولى</p>
+        </div>
+
+        <form id="authForm" class="auth-form" onsubmit="return false;">
+          <div class="form-group">
+            <label class="form-label">من يستخدم هذا الجهاز الآن؟</label>
+            <div class="role-selector">
+              <label class="role-option">
+                <input type="radio" name="userRole" value="child" checked>
+                <div class="role-box">
+                  <span class="role-avatar">👦</span>
+                  <span class="role-name">الابن / الابنة</span>
+                </div>
+              </label>
+
+              <label class="role-option">
+                <input type="radio" name="userRole" value="father">
+                <div class="role-box">
+                  <span class="role-avatar">👨</span>
+                  <span class="role-name">الوالد (أبي)</span>
+                </div>
+              </label>
+
+              <label class="role-option">
+                <input type="radio" name="userRole" value="mother">
+                <div class="role-box">
+                  <span class="role-avatar">👵</span>
+                  <span class="role-name">الوالدة (أمي)</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group pin-group">
+            <label for="pinInput" class="form-label">الرمز السري العائلي (PIN)</label>
+            <div class="pin-input-container">
+              <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="أدخل الرمز السري..." autocomplete="off">
+              <button type="button" id="btnTogglePin" class="btn-toggle-eye">👁️</button>
+            </div>
+            <p class="pin-hint">💡 الرمز السري الافتراضي للتجربة هو: <strong>2026</strong> (يمكنك تغييره في الخادم)</p>
+          </div>
+
+          <button type="submit" id="btnLogin" class="btn btn-primary btn-large">
+            <span>تسجيل الدخول والتفعيل</span>
+            <span class="arrow-icon">⬅️</span>
+          </button>
+        </form>
+      </div>
+    </main>
+
+    <!-- 2. الشاشة الرئيسية للاتصال (Main Screen) -->
+    <main id="mainScreen" class="screen">
+      
+      <!-- وضع الأبناء (Child Mode) -->
+      <section id="childDashboard" class="dashboard-section">
+        <div class="greeting-banner">
+          <h2>حياك الله يا بني / ابنتي 👋</h2>
+          <p>اضغط زراً واحداً للتواصل المباشر مع والديك الغاليين</p>
+        </div>
+
+        <div class="parents-call-grid">
+          <!-- كارت الاتصال بالوالد -->
+          <div class="parent-card" id="cardFather">
+            <div class="parent-avatar-wrap">
+              <span class="parent-avatar">👨</span>
+              <span id="fatherStatusBadge" class="live-status-pill offline">
+                <span class="pulse-dot"></span>
+                <span class="status-label">غير متصل</span>
+              </span>
+            </div>
+            <div class="parent-info">
+              <h3>الوالد الحبيب (أبي)</h3>
+              <p>مكالمة مرئية وصوتية مباشرة</p>
+            </div>
+            <button id="btnCallFather" class="btn btn-call btn-call-father" data-target="father">
+              <span class="call-icon">📞</span>
+              <span>اتصال بأبي</span>
+            </button>
+          </div>
+
+          <!-- كارت الاتصال بالوالدة -->
+          <div class="parent-card" id="cardMother">
+            <div class="parent-avatar-wrap">
+              <span class="parent-avatar">👵</span>
+              <span id="motherStatusBadge" class="live-status-pill offline">
+                <span class="pulse-dot"></span>
+                <span class="status-label">غير متصلة</span>
+              </span>
+            </div>
+            <div class="parent-info">
+              <h3>الوالدة الحبيبة (أمي)</h3>
+              <p>مكالمة مرئية وصوتية مباشرة</p>
+            </div>
+            <button id="btnCallMother" class="btn btn-call btn-call-mother" data-target="mother">
+              <span class="call-icon">📞</span>
+              <span>اتصال بأمي</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- وضع الوالد أو الوالدة (Parent Mode - مصمم خصيصاً بأزرار ضخمة جداً) -->
+      <section id="parentDashboard" class="dashboard-section parent-simple-mode">
+        <div class="greeting-banner parent-greeting">
+          <span class="heart-badge">❤️</span>
+          <h2 id="parentGreetingTitle">أهلاً بك يا أبي الغالي</h2>
+          <p>اضغط على الزر الأخضر الكبير أدناه للاتصال بالأولاد فوراً</p>
+        </div>
+
+        <div class="parent-single-call-container">
+          <div class="child-status-container">
+            <span id="childStatusBadge" class="live-status-pill offline">
+              <span class="pulse-dot"></span>
+              <span class="status-label">الأولاد غير متصلين حالياً</span>
+            </span>
+          </div>
+
+          <!-- زر ضخم جداً للوالد أو الوالدة -->
+          <button id="btnParentCallChild" class="btn btn-giant-call">
+            <div class="giant-icon">📞</div>
+            <div class="giant-text">
+              <span class="giant-title">اتصال بالأولاد</span>
+              <span class="giant-sub">اضغط هنا للتحدث بالصوت والصورة</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 3. نافذة انتظار الرد (Outgoing Calling Screen) -->
+    <div id="outgoingCallModal" class="modal-overlay">
+      <div class="modal-card outgoing-card">
+        <div class="pulse-avatar-container">
+          <span id="outgoingAvatar" class="calling-avatar">👨</span>
+          <div class="radar-wave"></div>
+          <div class="radar-wave wave-2"></div>
+        </div>
+        <h2 id="outgoingTargetName" class="calling-name">جاري الاتصال بالوالد...</h2>
+        <p class="calling-status">يرن الآن... في انتظار الرد</p>
+        <button id="btnCancelCall" class="btn btn-danger btn-large">
+          <span>❌ إلغاء الاتصال</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. نافذة المكالمة الواردة (Incoming Call Modal لكبار السن) -->
+    <div id="incomingCallModal" class="modal-overlay incoming-overlay">
+      <div class="modal-card incoming-card">
+        <div class="incoming-header">
+          <span class="bell-animation">🔔</span>
+          <h2 id="incomingCallerName">مكالمة واردة من الابن</h2>
+          <p>يرن هاتفك الآن للحديث بالصوت والصورة</p>
+        </div>
+
+        <div class="incoming-avatar-container">
+          <span id="incomingCallerAvatar" class="big-avatar">👦</span>
+          <div class="ring-pulse"></div>
+        </div>
+
+        <!-- أزرار ضخمة جداً لتسهيل النقر على الوالدين -->
+        <div class="incoming-actions">
+          <button id="btnAcceptCall" class="btn btn-answer-giant">
+            <span class="action-icon">📞</span>
+            <span>رد على المكالمة</span>
+          </button>
+
+          <button id="btnRejectCall" class="btn btn-decline-giant">
+            <span class="action-icon">❌</span>
+            <span>رفض</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. شاشة المكالمة الجارية الكاملة (Active WebRTC Video Call Screen) -->
+    <div id="activeCallScreen" class="active-call-fullscreen">
+      
+      <!-- شريط معلومات الأمان والتوقيت أثناء المكالمة -->
+      <div class="call-top-bar">
+        <div class="security-badge">
+          <span class="lock-icon">🔒</span>
+          <span>مشفرة بالكامل (E2EE - DTLS/SRTP)</span>
+        </div>
+        <div id="callTimer" class="call-timer">00:00</div>
+        <div id="peerNameHeader" class="peer-header-title">المكالمة جارية</div>
+      </div>
+
+      <!-- مساحة الفيديو الرئيسي للطرف الآخر -->
+      <div class="video-container">
+        <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+        
+        <!-- صورة بديلة في حال كان الفيديو مغلقاً -->
+        <div id="remoteVideoPlaceholder" class="video-placeholder hidden">
+          <span class="placeholder-avatar">👤</span>
+          <p>الكاميرا متوقفة من الطرف الآخر</p>
+        </div>
+
+        <!-- نافذة المعاينة المحلية المصغرة (PiP) -->
+        <div id="localVideoContainer" class="local-pip-box">
+          <video id="localVideo" class="local-video" autoplay playsinline muted></video>
+          <div id="localMuteIndicator" class="pip-mute-badge hidden">🔇 المايك مكتوم</div>
+        </div>
+      </div>
+
+      <!-- شريط أزرار التحكم بالمكالمة (أزرار كبيرة وواضحة جداً) -->
+      <div class="call-controls-bar">
+        <!-- زر كتم الصوت -->
+        <button id="btnToggleMic" class="call-btn btn-mic" title="كتم / تشغيل الصوت" aria-label="المايكروفون">
+          <span class="btn-icon-symbol">🎙️</span>
+          <span class="btn-label">المايك</span>
+        </button>
+
+        <!-- زر إيقاف الكاميرا -->
+        <button id="btnToggleCam" class="call-btn btn-cam" title="إيقاف / تشغيل الكاميرا" aria-label="الكاميرا">
+          <span class="btn-icon-symbol">📹</span>
+          <span class="btn-label">الكاميرا</span>
+        </button>
+
+        <!-- زر تبديل الكاميرا (أمامية / خلفية للجوالات) -->
+        <button id="btnFlipCam" class="call-btn btn-flip" title="تبديل الكاميرا" aria-label="تبديل الكاميرا">
+          <span class="btn-icon-symbol">🔄</span>
+          <span class="btn-label">قلب الكاميرا</span>
+        </button>
+
+        <!-- زر إنهاء المكالمة الضخم -->
+        <button id="btnHangup" class="call-btn btn-hangup" title="إنهاء المكالمة" aria-label="إنهاء المكالمة">
+          <span class="btn-icon-symbol">📞</span>
+          <span class="btn-label">إنهاء المكالمة</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- إشعار التنبيه العائم (Toast Notification) -->
+    <div id="toastNotification" class="toast-box">
+      <span id="toastIcon">ℹ️</span>
+      <span id="toastText">رسالة التنبيه</span>
+    </div>
+
+  </div>
+
+  <!-- خادم Socket.io المدمج -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <!-- ملفات التطبيق المعيارية -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

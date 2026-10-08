@@ -1,0 +1,1027 @@
+/* ==============================================================================
+   تطبيق "أبوي وأمي" (My Parents Call) - التصميم والتنسيق الفائق السهولة والأمان
+   ============================================================================== */
+
+:root {
+  /* لوحة الألوان الهادئة وعالية التباين لكبار السن */
+  --bg-primary: #0f172a;        /* كحلي غامق مريح للعين */
+  --bg-secondary: #1e293b;      /* كحلي أفتح للبطاقات */
+  --bg-card: rgba(30, 41, 59, 0.85);
+  
+  --text-main: #f8fafc;         /* أبيض ناصع عالي التباين */
+  --text-muted: #94a3b8;        /* رمادي فاتح للنصوص الفرعية */
+  --text-gold: #fbbf24;         /* ذهبي دافئ للعناوين الترحيبية */
+
+  --color-green: #10b981;       /* أخضر زاهي للاتصال والقبول */
+  --color-green-glow: rgba(16, 185, 129, 0.4);
+  --color-red: #ef4444;         /* أحمر للإنهاء والرفض */
+  --color-red-glow: rgba(239, 68, 68, 0.4);
+  --color-blue: #3b82f6;        /* أزرق للأزرار التفاعلية */
+  --color-amber: #f59e0b;       /* برتقالي للتنبيه */
+
+  --border-radius-lg: 24px;
+  --border-radius-md: 16px;
+  --border-radius-pill: 9999px;
+
+  --font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* حاوية التطبيق الرئيسية */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+}
+
+/* شريط الرأس (Header) */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-icon {
+  font-size: 2rem;
+}
+
+.app-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #60a5fa, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.badge-role {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.badge-status.connected {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.badge-status.disconnected {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge-status.connected .status-dot {
+  box-shadow: 0 0 8px var(--color-green);
+}
+
+.btn-icon {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  font-size: 1.25rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-smooth);
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: rotate(30deg);
+}
+
+/* إدارة ظهور الشاشات (Screen Switcher) */
+.screen {
+  display: none;
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.screen.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* بطاقة تسجيل الدخول (Auth Card) */
+.card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.auth-card {
+  max-width: 480px;
+  margin: auto;
+  width: 100%;
+  padding: 2.25rem;
+  text-align: center;
+}
+
+.family-emblem {
+  font-size: 3.5rem;
+  margin-bottom: 0.5rem;
+  animation: heartPulse 2s infinite ease-in-out;
+}
+
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.auth-header h2 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+  text-align: right;
+}
+
+.form-label {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: var(--text-main);
+}
+
+.role-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.role-option input {
+  display: none;
+}
+
+.role-box {
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-md);
+  padding: 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.role-avatar {
+  font-size: 2.2rem;
+}
+
+.role-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.role-option input:checked + .role-box {
+  border-color: var(--color-blue);
+  background: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  transform: translateY(-3px);
+}
+
+.pin-input-container {
+  display: flex;
+  position: relative;
+}
+
+.pin-input-container input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  font-size: 1.4rem;
+  font-family: inherit;
+  letter-spacing: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--border-radius-md);
+  color: var(--text-main);
+  outline: none;
+  text-align: center;
+  transition: var(--transition-smooth);
+}
+
+.pin-input-container input:focus {
+  border-color: var(--color-green);
+  box-shadow: 0 0 12px var(--color-green-glow);
+}
+
+.btn-toggle-eye {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.pin-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+/* الأزرار العامة */
+.btn {
+  font-family: inherit;
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: var(--transition-smooth);
+  user-select: none;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  width: 100%;
+  padding: 1.15rem;
+  font-size: 1.2rem;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 12px 25px rgba(37, 99, 235, 0.5);
+  filter: brightness(1.1);
+}
+
+/* 2. الشاشة الرئيسية للاتصال */
+.dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.greeting-banner {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-radius: var(--border-radius-lg);
+  text-align: center;
+}
+
+.greeting-banner h2 {
+  font-size: 1.6rem;
+  color: var(--text-gold);
+  margin-bottom: 0.4rem;
+}
+
+.greeting-banner p {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+/* كروت اتصال الأبناء بالوالدين */
+.parents-call-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.parent-card {
+  background: var(--bg-card);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-lg);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+  transition: var(--transition-smooth);
+}
+
+.parent-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+}
+
+.parent-avatar-wrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.parent-avatar {
+  font-size: 4rem;
+}
+
+.live-status-pill {
+  position: absolute;
+  bottom: -6px;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.live-status-pill.online {
+  background: #064e3b;
+  border: 1px solid #10b981;
+  color: #6ee7b7;
+}
+
+.live-status-pill.offline {
+  background: #450a0a;
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.live-status-pill.online .pulse-dot {
+  box-shadow: 0 0 8px var(--color-green);
+  animation: liveBlink 1.5s infinite;
+}
+
+@keyframes liveBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.parent-info h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.parent-info p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.btn-call {
+  width: 100%;
+  padding: 1.25rem;
+  font-size: 1.35rem;
+  border-radius: var(--border-radius-pill);
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn-call-father {
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+
+.btn-call-father:hover {
+  box-shadow: 0 12px 28px var(--color-green-glow);
+  filter: brightness(1.1);
+}
+
+.btn-call-mother {
+  background: linear-gradient(135deg, #0284c7, #0ea5e9);
+}
+
+.btn-call-mother:hover {
+  box-shadow: 0 12px 28px rgba(14, 165, 233, 0.5);
+  filter: brightness(1.1);
+}
+
+.call-icon {
+  font-size: 1.5rem;
+}
+
+/* وضع الوالدين (Parent Mode - أزرار ضخمة جداً) */
+.parent-simple-mode {
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.parent-greeting {
+  width: 100%;
+  padding: 2rem;
+}
+
+.heart-badge {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.parent-greeting h2 {
+  font-size: 2.2rem;
+  color: var(--text-gold);
+}
+
+.parent-greeting p {
+  font-size: 1.35rem;
+  color: var(--text-main);
+  margin-top: 0.5rem;
+}
+
+.parent-single-call-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin: auto 0;
+  gap: 1.5rem;
+}
+
+.btn-giant-call {
+  width: 100%;
+  max-width: 550px;
+  min-height: 140px;
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #ffffff;
+  border-radius: var(--border-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 20px 40px var(--color-green-glow);
+  border: 4px solid #34d399;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-giant-call:hover {
+  transform: scale(1.03);
+  box-shadow: 0 25px 50px var(--color-green-glow);
+}
+
+.giant-icon {
+  font-size: 4rem;
+  background: rgba(255, 255, 255, 0.2);
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.giant-text {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+}
+
+.giant-title {
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.giant-sub {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  font-weight: 600;
+}
+
+/* 3 & 4. النوافذ المنبثقة للاتصال (Modals) */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-card {
+  background: var(--bg-secondary);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--border-radius-lg);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+}
+
+/* نافذة الانتظار (Outgoing) */
+.pulse-avatar-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calling-avatar {
+  font-size: 5rem;
+  z-index: 2;
+}
+
+.radar-wave {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid var(--color-green);
+  animation: radarPing 2s infinite ease-out;
+}
+
+.radar-wave.wave-2 {
+  animation-delay: 0.8s;
+}
+
+@keyframes radarPing {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.calling-name {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.calling-status {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff;
+  width: 100%;
+  padding: 1.2rem;
+  font-size: 1.25rem;
+}
+
+/* نافذة المكالمة الواردة (Incoming) لكبار السن */
+.incoming-overlay {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.incoming-card {
+  border: 4px solid var(--color-green);
+  animation: incomingNotice 1s infinite alternate ease-in-out;
+}
+
+@keyframes incomingNotice {
+  0% { border-color: #10b981; box-shadow: 0 0 30px rgba(16, 185, 129, 0.3); }
+  100% { border-color: #34d399; box-shadow: 0 0 60px rgba(16, 185, 129, 0.7); }
+}
+
+.bell-animation {
+  font-size: 3rem;
+  display: inline-block;
+  animation: bellRing 0.8s infinite ease-in-out;
+}
+
+@keyframes bellRing {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(20deg); }
+  75% { transform: rotate(-20deg); }
+}
+
+.incoming-header h2 {
+  font-size: 2.2rem;
+  color: #ffffff;
+  margin: 0.5rem 0;
+}
+
+.incoming-header p {
+  font-size: 1.25rem;
+  color: var(--text-gold);
+}
+
+.incoming-avatar-container {
+  margin: 1.5rem auto;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.big-avatar {
+  font-size: 5rem;
+}
+
+.incoming-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.btn-answer-giant {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #fff;
+  font-size: 2.2rem;
+  font-weight: 900;
+  padding: 1.35rem;
+  border-radius: var(--border-radius-pill);
+  box-shadow: 0 15px 35px var(--color-green-glow);
+  border: 3px solid #6ee7b7;
+}
+
+.btn-decline-giant {
+  background: linear-gradient(135deg, #991b1b, #dc2626);
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 800;
+  padding: 1rem;
+  border-radius: var(--border-radius-pill);
+}
+
+/* 5. شاشة المكالمة الجارية الكاملة (Active Video Call Screen) */
+.active-call-fullscreen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 200;
+  flex-direction: column;
+}
+
+.active-call-fullscreen.active {
+  display: flex;
+}
+
+.call-top-bar {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 210;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--border-radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.security-badge {
+  font-size: 0.85rem;
+  color: #6ee7b7;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.call-timer {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.peer-header-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-gold);
+}
+
+.video-container {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remote-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.video-placeholder {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+
+.video-placeholder.hidden {
+  display: none;
+}
+
+.placeholder-avatar {
+  font-size: 6rem;
+}
+
+/* نافذة المعاينة المحلية المصغرة (PiP) */
+.local-pip-box {
+  position: absolute;
+  top: 5.5rem;
+  right: 1.5rem;
+  width: 140px;
+  height: 190px;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+  background: #111;
+  z-index: 210;
+  transition: transform 0.2s;
+}
+
+.local-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* مرآة للمعاينة الطبيعية للوجه */
+}
+
+.pip-mute-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  background: rgba(220, 38, 38, 0.85);
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.pip-mute-badge.hidden {
+  display: none;
+}
+
+/* أزرار التحكم بالمكالمة في الأسفل */
+.call-controls-bar {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  padding: 1rem 1.75rem;
+  border-radius: var(--border-radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 210;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+}
+
+.call-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border-radius: 50%;
+  width: 65px;
+  height: 65px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-smooth);
+}
+
+.call-btn .btn-icon-symbol {
+  font-size: 1.6rem;
+}
+
+.call-btn .btn-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
+}
+
+.call-btn.muted, .call-btn.off {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: var(--color-red);
+  color: #fca5a5;
+}
+
+.call-btn.btn-hangup {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  border-color: #f87171;
+  width: 80px;
+  height: 80px;
+  box-shadow: 0 10px 25px var(--color-red-glow);
+}
+
+.call-btn.btn-hangup .btn-icon-symbol {
+  font-size: 2.2rem;
+  transform: rotate(135deg);
+}
+
+.call-btn.btn-hangup .btn-label {
+  font-size: 0.75rem;
+}
+
+/* إشعار التنبيه العائم (Toast Notification) */
+.toast-box {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.85rem 1.5rem;
+  border-radius: var(--border-radius-pill);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+  z-index: 300;
+  opacity: 0;
+  transition: var(--transition-smooth);
+  font-size: 1rem;
+  font-weight: 700;
+  max-width: 90%;
+  text-align: center;
+}
+
+.toast-box.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* التجاوب مع شاشات الجوال */
+@media (max-width: 600px) {
+  .app-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .app-title {
+    font-size: 1.35rem;
+  }
+  
+  .parents-call-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .btn-giant-call {
+    min-height: 120px;
+    padding: 1.25rem 1rem;
+    gap: 1rem;
+  }
+  
+  .giant-icon {
+    width: 70px;
+    height: 70px;
+    font-size: 3rem;
+  }
+  
+  .giant-title {
+    font-size: 1.9rem;
+  }
+  
+  .giant-sub {
+    font-size: 1rem;
+  }
+  
+  .local-pip-box {
+    width: 100px;
+    height: 140px;
+    top: 4.5rem;
+    right: 1rem;
+  }
+  
+  .call-controls-bar {
+    gap: 0.85rem;
+    padding: 0.75rem 1.25rem;
+    bottom: 1.5rem;
+  }
+  
+  .call-btn {
+    width: 58px;
+    height: 58px;
+  }
+  
+  .call-btn.btn-hangup {
+    width: 70px;
+    height: 70px;
+  }
+}

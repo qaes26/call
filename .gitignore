@@ -1,0 +1,38 @@
+# ==============================================================================
+# قواعد استثناء الملفات الحساسة لمنع أي تسريب أمني (Security .gitignore)
+# ==============================================================================
+
+# 1. استثناء ملفات الأسرار والمتغيرات البيئية الحساسة (CRITICAL)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# استثناء الشهادات الرقمية والمفاتيح الخاصة
+*.pem
+*.key
+*.crt
+*.pfx
+certs/
+
+# 2. استثناء مكتبات Node.js وحزم التشغيل
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 3. سجلات النظام والتشغيل المؤقتة
+logs/
+*.log
+
+# 4. ملفات النظام ومحررات الأكواد
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.system_generated/
+scratch/
