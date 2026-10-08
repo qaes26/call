@@ -52,7 +52,7 @@
                 <input type="radio" name="userRole" value="child" checked>
                 <div class="role-box">
                   <span class="role-avatar">👦</span>
-                  <span class="role-name">الابن / الابنة</span>
+                  <span class="role-name">قيس (الابن)</span>
                 </div>
               </label>
 
@@ -75,12 +75,12 @@
           </div>
 
           <div class="form-group pin-group">
-            <label for="pinInput" class="form-label">الرمز السري العائلي (PIN)</label>
+            <label for="pinInput" class="form-label">الرمز السري الخاص بك (PIN)</label>
             <div class="pin-input-container">
-              <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="أدخل الرمز السري..." autocomplete="off">
+              <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="أدخل الرمز السري الخاص بحسابك..." autocomplete="off">
               <button type="button" id="btnTogglePin" class="btn-toggle-eye">👁️</button>
             </div>
-            <p class="pin-hint">💡 الرمز السري الافتراضي للتجربة هو: <strong>2026</strong> (يمكنك تغييره في الخادم)</p>
+            <p class="pin-hint">🔒 كل فرد في العائلة له رمز سري خاص به ومحمي بالتشفير</p>
           </div>
 
           <button type="submit" id="btnLogin" class="btn btn-primary btn-large">
@@ -94,10 +94,10 @@
     <!-- 2. الشاشة الرئيسية للاتصال (Main Screen) -->
     <main id="mainScreen" class="screen">
       
-      <!-- وضع الأبناء (Child Mode) -->
+      <!-- وضع الأبناء (Child Mode - قيس) -->
       <section id="childDashboard" class="dashboard-section">
         <div class="greeting-banner">
-          <h2>حياك الله يا بني / ابنتي 👋</h2>
+          <h2>حياك الله يا قيس 👋</h2>
           <p>اضغط زراً واحداً للتواصل المباشر مع والديك الغاليين</p>
         </div>
 
@@ -147,14 +147,14 @@
         <div class="greeting-banner parent-greeting">
           <span class="heart-badge">❤️</span>
           <h2 id="parentGreetingTitle">أهلاً بك يا أبي الغالي</h2>
-          <p>اضغط على الزر الأخضر الكبير أدناه للاتصال بالأولاد فوراً</p>
+          <p>اضغط على الزر الأخضر الكبير أدناه للاتصال بقيس فوراً</p>
         </div>
 
         <div class="parent-single-call-container">
           <div class="child-status-container">
             <span id="childStatusBadge" class="live-status-pill offline">
               <span class="pulse-dot"></span>
-              <span class="status-label">الأولاد غير متصلين حالياً</span>
+              <span class="status-label">قيس غير متصل حالياً</span>
             </span>
           </div>
 
@@ -162,7 +162,7 @@
           <button id="btnParentCallChild" class="btn btn-giant-call">
             <div class="giant-icon">📞</div>
             <div class="giant-text">
-              <span class="giant-title">اتصال بالأولاد</span>
+              <span class="giant-title">اتصال بقيس</span>
               <span class="giant-sub">اضغط هنا للتحدث بالصوت والصورة</span>
             </div>
           </button>

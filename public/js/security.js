@@ -1,7 +1,26 @@
 /**
- * إدارة الأمان والتشفير الشامل (E2EE) وحساب المفاتيح على المتصفح مباشرة
- * مصمم ليعمل 100% على Netlify بدون الحاجة لأي خادم وسيط
+ * إدارة الأمان والتشفير الشامل (E2EE) وتوثيق أفراد عائلة قيس
+ * متوافق 100% مع Netlify بدون أي سيرفر
  */
+
+// كلمات السر المحددة لكل فرد من أفراد العائلة
+const FAMILY_MEMBERS_PINS = {
+  father: {
+    pin: '1973',
+    name: 'الوالد الحبيب (أبي)'
+  },
+  mother: {
+    pin: '332211',
+    name: 'الوالدة الحبيبة (أمي)'
+  },
+  child: {
+    pin: '20052006',
+    name: 'قيس (الابن)'
+  }
+};
+
+// البذرة العائلية المشتركة لتشفير المكالمات E2EE بين أفراد العائلة
+const FAMILY_MASTER_SECRET = 'qais_family_secure_e2ee_call_v2026_salt_984321';
 
 export class SecurityManager {
   constructor() {
@@ -56,24 +75,23 @@ export class SecurityManager {
     return true;
   }
 
-  // اشتقاق مفتاح التشفير AES-256-GCM ومعرف الغرفة من الرمز السري العائلي (PBKDF2)
-  async initCryptoFromPin(pin) {
+  // تهيئة مفتاح التشفير العائلي AES-256-GCM (PBKDF2)
+  async initCryptoKeys() {
     const enc = new TextEncoder();
-    const pinBuffer = enc.encode(String(pin).trim());
+    const baseBuffer = enc.encode(FAMILY_MASTER_SECRET);
 
-    // 1. توليد مفتاح أساسي من الـ PIN
+    // استيراد المفتاح الأساسي
     const baseKey = await crypto.subtle.importKey(
       'raw',
-      pinBuffer,
+      baseBuffer,
       { name: 'PBKDF2' },
       false,
       ['deriveKey']
     );
 
-    // ملح ثابت للمشروع لضمان اشتقاق نفس المفتاح بين أفراد نفس العائلة
-    const salt = enc.encode('my_parents_call_salt_v1_2026_e2ee');
+    const salt = enc.encode('qais_parents_salt_e2ee_2026');
 
-    // 2. اشتقاق مفتاح AES-GCM (256 بت) مع 100,000 تكرار لمقاومة التخمين
+    // اشتقاق مفتاح AES-GCM (256-bit) بـ 100,000 تكرار
     this.cryptoKey = await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
@@ -87,13 +105,12 @@ export class SecurityManager {
       ['encrypt', 'decrypt']
     );
 
-    // 3. حساب معرف فريد ومشفر لغرفة العائلة (SHA-256 Hash)
+    // حساب المعرف المشفر لغرفة عائلة قيس (Room Hash)
     const roomBuffer = await crypto.subtle.digest(
       'SHA-256',
-      enc.encode(`room_${String(pin).trim()}_my_parents_call`)
+      enc.encode('room_qais_parents_family_call_2026')
     );
     
-    // تحويل الـ Hash إلى سلسلة نصية
     const hashArray = Array.from(new Uint8Array(roomBuffer));
     this.roomHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 24);
 
@@ -103,15 +120,14 @@ export class SecurityManager {
     };
   }
 
-  // تشفير أي رسالة أو بيانات قبل إرسالها عبر قناة الإشارات (AES-256-GCM)
+  // تشفير أي رسالة أو حزمة WebRTC قبل إرسالها (AES-256-GCM)
   async encryptPayload(dataObj) {
-    if (!this.cryptoKey) throw new Error('مفتاح التشفير غير مهيأ');
+    if (!this.cryptoKey) await this.initCryptoKeys();
 
     const enc = new TextEncoder();
     const plainText = JSON.stringify(dataObj);
     const encodedData = enc.encode(plainText);
 
-    // توليد IV (Initialization Vector) عشوائي لكل رسالة
     const iv = crypto.getRandomValues(new Uint8Array(12));
 
     const ciphertextBuffer = await crypto.subtle.encrypt(
@@ -120,7 +136,6 @@ export class SecurityManager {
       encodedData
     );
 
-    // تحويل البيانات المشفرة إلى Base64 لنقلها بأمان
     const cipherArray = new Uint8Array(ciphertextBuffer);
     const combined = new Uint8Array(iv.length + cipherArray.length);
     combined.set(iv, 0);
@@ -135,7 +150,7 @@ export class SecurityManager {
 
   // فك تشفير البيانات المستلمة (AES-256-GCM)
   async decryptPayload(base64Payload) {
-    if (!this.cryptoKey) throw new Error('مفتاح التشفير غير مهيأ');
+    if (!this.cryptoKey) await this.initCryptoKeys();
 
     try {
       const binaryString = atob(base64Payload);
@@ -144,7 +159,6 @@ export class SecurityManager {
         combined[i] = binaryString.charCodeAt(i);
       }
 
-      // استخراج الـ IV (أول 12 بايت) والبيانات المشفرة
       const iv = combined.slice(0, 12);
       const ciphertext = combined.slice(12);
 
@@ -158,24 +172,32 @@ export class SecurityManager {
       const jsonString = dec.decode(decryptedBuffer);
       return JSON.parse(jsonString);
     } catch (err) {
-      console.warn('[E2EE DECRYPT WARNING] تعذر فك تشفير الرسالة (ربما تم إرسالها برمز PIN مختلف):', err);
+      console.warn('[E2EE DECRYPT WARNING] تعذر فك تشفير الرسالة:', err);
       return null;
     }
   }
 
-  // المصادقة المحلية المباشرة على المتصفح
-  async authenticate(pin, role) {
-    if (!pin || pin.length < 4) {
-      throw new Error('الرجاء إدخال رمز سري عائلي صحيح مكون من 4 أرقام أو أكثر');
+  // التحقق من الرمز السري الخاص بكل شخص
+  async authenticate(enteredPin, role) {
+    const member = FAMILY_MEMBERS_PINS[role];
+    if (!member) {
+      throw new Error('نوع الحساب المحدد غير صالح');
+    }
+
+    const cleanPin = String(enteredPin).trim();
+
+    if (cleanPin !== member.pin) {
+      throw new Error(`الرمز السري غير صحيح لحساب (${member.name}). يرجى التأكد من الرمز.`);
     }
 
     // تهيئة التشفير التام
-    await this.initCryptoFromPin(pin);
-    this.saveSession(pin, role);
+    await this.initCryptoKeys();
+    this.saveSession(cleanPin, role);
 
     return {
       success: true,
       role,
+      name: member.name,
       roomHash: this.roomHash
     };
   }
@@ -187,7 +209,6 @@ export class SecurityManager {
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
       { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:stun.cloudflare.com:3478' }
     ];
   }

@@ -3,11 +3,11 @@ import { signalingClient } from './signaling.js';
 import { WebRTCConnection } from './webrtc.js';
 import { callSound } from './audio.js';
 
-// نصوص وترجمة الأدوار باللغة العربية
+// نصوص وترجمة الأدوار باللغة العربية المخصصة لعائلة قيس
 const ROLE_NAMES = {
   father: 'الوالد الحبيب (أبي)',
   mother: 'الوالدة الحبيبة (أمي)',
-  child: 'الأولاد (الابن/الابنة)'
+  child: 'قيس (الابن)'
 };
 
 const ROLE_AVATARS = {
@@ -140,10 +140,10 @@ class FamilyCallApp {
 
     if (savedPin && savedRole) {
       try {
-        await securityManager.initCryptoFromPin(savedPin);
+        const authData = await securityManager.authenticate(savedPin, savedRole);
         this.currentRole = savedRole;
         this.showMainScreen();
-        this.connectSignalingServer(savedRole, securityManager.roomHash);
+        this.connectSignalingServer(savedRole, authData.roomHash);
       } catch (err) {
         console.error('فشل استرجاع الجلسة السابقة:', err);
         this.showAuthScreen();
@@ -153,7 +153,7 @@ class FamilyCallApp {
     }
   }
 
-  showToast(message, duration = 3500) {
+  showToast(message, duration = 4000) {
     this.toastText.textContent = message;
     this.toastBox.classList.add('show');
     clearTimeout(this.toastTimeout);
@@ -193,13 +193,13 @@ class FamilyCallApp {
     const pin = this.pinInput.value.trim();
 
     if (!pin) {
-      this.showToast('يرجى إدخال الرمز السري العائلي');
+      this.showToast('يرجى إدخال الرمز السري الخاص بك');
       this.pinInput.focus();
       return;
     }
 
     this.btnLogin.disabled = true;
-    this.btnLogin.textContent = 'جاري التفعيل...';
+    this.btnLogin.textContent = 'جاري التحقق والتفعيل...';
 
     try {
       const data = await securityManager.authenticate(pin, role);
@@ -207,7 +207,7 @@ class FamilyCallApp {
       this.pinInput.value = '';
       this.showMainScreen();
       this.connectSignalingServer(role, data.roomHash);
-      this.showToast(`مرحباً بك! تم التفعيل بنجاح كـ ${ROLE_NAMES[role]}`);
+      this.showToast(`مرحباً بك! تم التفعيل بنجاح كـ ${data.name}`);
     } catch (err) {
       console.error('[LOGIN ERROR]:', err);
       this.showToast(err.message || 'فشل تسجيل الدخول');
@@ -319,14 +319,14 @@ class FamilyCallApp {
       }
     }
 
-    // تحديث شارة الأبناء في وضع الوالدين
+    // تحديث شارة قيس في وضع الوالدين
     if (this.childStatusBadge) {
       if (this.presence.child) {
         this.childStatusBadge.className = 'live-status-pill online';
-        this.childStatusBadge.querySelector('.status-label').textContent = 'الأولاد متصلون بالإنترنت ومتاحون';
+        this.childStatusBadge.querySelector('.status-label').textContent = 'قيس متصل بالإنترنت ومتاح الآن 🟢';
       } else {
         this.childStatusBadge.className = 'live-status-pill offline';
-        this.childStatusBadge.querySelector('.status-label').textContent = 'الأولاد غير متصلين حالياً';
+        this.childStatusBadge.querySelector('.status-label').textContent = 'قيس غير متصل حالياً';
       }
     }
   }
